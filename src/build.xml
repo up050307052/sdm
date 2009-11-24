@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="TrabalhoSDM" default="rmic" basedir=".">
+  <property name="build" location="build"/>
+
+  <target name="javac">
+      <mkdir dir="${build}"/>
+      <javac srcdir="." destdir="${build}"/>
+  </target>
+
+  <target name="rmic" depends="javac">
+      <rmic base="${build}/" classname="StreamPublisherServer"/>
+      <rmic base="${build}/" classname="StreamProviderServer"/>
+      <rmic base="${build}/" classname="StreamSubscriberServer"/>
+  </target>
+
+  <target name="clean">
+    <delete dir="${build}"/>
+  </target>
+</project>
