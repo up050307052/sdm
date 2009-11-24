@@ -3,6 +3,7 @@ import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.Hashtable;
+import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,16 +27,45 @@ public class StreamPublisherServer
     public void registerStream(String provider, StreamType type)
             throws RemoteException {
 
-        providerList.put(provider, type);
+        // colocar na hashtable
+        if (providerList.containsKey(type)) {
+            System.out.println("registerStream");
+            Vector <String> v = (Vector<String>)providerList.remove(type);
+            v.add(provider);
+            providerList.put(type, v);
+        }
+        else {
+            Vector <String> v = new Vector<String>();
+            v.add(provider);
+            providerList.put(type, v);
+        }
 
-        if (subscriberList.contains(type))
+        if (subscriberList.contains(type)) {
+            System.out.println("tem subs");
 
+            try {
+                IStreamProvider isp = (IStreamProvider) Naming.lookup("rmi://localhost/"+provider);
+                isp.startStreaming();
+            } catch (NotBoundException ex) {
+                Logger.getLogger(StreamPublisherServer.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (MalformedURLException ex) {
+                Logger.getLogger(StreamPublisherServer.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     public void subscribeStream(String subscriber, StreamType type)
             throws RemoteException {
-
-        subscriberList.add(new SubscriberRegister(subscriber, type));
+        if (subscriberList.containsKey(type)) {
+            Vector <String> v = (Vector<String>)subscriberList.remove(type);
+            v.add(subscriber);
+            subscriberList.put(type, v);
+        }
+        else {
+            Vector <String> v = new Vector<String>();
+            v.add(subscriber);
+            subscriberList.put(type, v);
+        }
     }
 
     public void unsubscribeStream(String subscriber, StreamType type)
@@ -44,19 +74,18 @@ public class StreamPublisherServer
 
     public void forwardStream(String provider, Stream data)
             throws RemoteException {
-
-        for (int i=0; i< subscriberList.size(); i++) {
-            if (subscriberList.get(i).streamType.type == data.type.type) {
-                try {
-                    IStreamSubscriber iss = (IStreamSubscriber) Naming.lookup("rmi://localhost/"+subscriberList.get(i).subscriberServiceName);
-                    iss.forwardStream(provider, data);
-                } catch (NotBoundException ex) {
-                    Logger.getLogger(StreamPublisherServer.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (MalformedURLException ex) {
-                    Logger.getLogger(StreamPublisherServer.class.getName()).log(Level.SEVERE, null, ex);
-                }
+        Vector <String> v = (Vector<String>)subscriberList.remove(data.type);
+        for (int i=0; i<v.size(); i++) {
+            try {
+                IStreamSubscriber iss = (IStreamSubscriber) Naming.lookup("rmi://localhost/"+v.get(i));
+                iss.forwardStream(provider, data);
+            } catch (NotBoundException ex) {
+                Logger.getLogger(StreamPublisherServer.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (MalformedURLException ex) {
+                Logger.getLogger(StreamPublisherServer.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
+
     }
 
     public static void main (String args[]) {
